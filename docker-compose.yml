@@ -1,0 +1,138 @@
+version: '3.8'
+
+networks:
+  devsecops_net:
+    driver: bridge
+
+volumes:
+  teamcity_data:
+  teamcity_logs:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+
+services:
+  # ==========================================
+  # 🏢 A ESTEIRA: TeamCity (Server + Agent)
+  # ==========================================
+  teamcity:
+    image: jetbrains/teamcity-server:latest
+    container_name: teamcity_server
+    ports:
+      - "8111:8111"
+    volumes:
+      - teamcity_data:/data/teamcity_server/datadir
+      - teamcity_logs:/opt/teamcity/logs
+      - ./php_app:/php_app
+    networks:
+      - devsecops_net
+
+  teamcity-agent:
+    image: jetbrains/teamcity-agent:latest
+    container_name: teamcity_agent
+    volumes:
+      # Permite que o Agent execute comandos docker (como o Trivy) dentro da máquina real
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - SERVER_URL=http://teamcity_server:8111
+    depends_on:
+      - teamcity
+    networks:
+      - devsecops_net
+
+  # ==========================================
+  # 🛡️ O ANALISADOR DE CÓDIGO: SonarQube
+  # ==========================================
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube_server
+    ports:
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+###    sysctls:
+###      # O SonarQube usa Elasticsearch por baixo, que exige essa configuração de memória virtual
+###      - vm.max_map_count=262144
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - devsecops_net
+
+  mysql_container:
+    image: mysql:8.0
+    container_name: mysql_container
+    environment:
+      MYSQL_ROOT_PASSWORD: "SenhaSuperSecretaDoBatman123!"
+      MYSQL_DATABASE: "db_herois"
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - devsecops_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pSenhaSuperSecretaDoBatman123!"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 🌐 Aplicação PHP (Usando imagem oficial vulnerável direta do Docker Hub)
+  php_app:
+    image: php:7.4-apache
+    container_name: php_app
+    ports:
+      - "8080:80"
+    volumes:
+      # Injeta o código do login direto para dentro do servidor Apache do container
+      - ./php_app:/var/www/html/
+    entrypoint: >
+      bash -c "docker-php-ext-install mysqli && apache2-foreground"
+    depends_on:
+      mysql_container:
+        condition: service_healthy
+    networks:
+      - devsecops_net
+
+
+###  # ==========================================
+###  # 🗄️ BANCO DE DADOS (Seu App)
+###  # ==========================================
+###  mysql_container:
+###    image: mysql:8.0
+###    container_name: mysql_container
+###    environment:
+###      MYSQL_ROOT_PASSWORD: "SenhaSuperSecretaDoBatman123!"
+###      MYSQL_DATABASE: "db_herois"
+###    ports:
+###      - "3306:3306"
+###    volumes:
+###      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+###    networks:
+###      - devsecops_net
+###    healthcheck:
+###      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pSenhaSuperSecretaDoBatman123!"]
+###      interval: 5s
+###      timeout: 5s
+###      retries: 5
+###
+###  # ==========================================
+###  # 🌐 APLICAÇÃO VULNERÁVEL (Seu App)
+###  # ==========================================
+###  php_app:
+###    image: php:7.4-apache
+###    container_name: php_app
+###    ports:
+###      - "8080:80"
+###    volumes:
+###      - ./index.php:/var/www/html/index.php
+###    entrypoint: >
+###      bash -c "docker-php-ext-install mysqli && apache2-foreground"
+###    depends_on:
+###      mysql_container:
+###        condition: service_healthy
+###    networks:
+###      - devsecops_net
