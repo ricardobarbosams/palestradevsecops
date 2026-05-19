@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <center>
     <?php if (!$logado): ?>
         <div class="box">
-            <h2>🔐 Login do Sistema</h2>
+            <h2>🔐 Login do Sistemaaaaaa</h2>
             <form method="POST">
                 <label>Usuário:</label><br>
                 <input type="text" name="user" style="width: 100%;"><br><br>
