@@ -6,15 +6,18 @@ error_reporting(E_ALL);
 // Conexão com o banco (PROBLEMA 1: Credencial exposta que o SonarQube vai pegar)
 $conexao = mysqli_connect("mysql_container", "root", "SenhaSuperSecretaDoBatman123!", "db_herois");
 
-$usuario = $_POST['user'] ?? '';
-$senha   = $_POST['pass'] ?? '';
+//$usuario = $_POST['user'] ?? '';
+//$senha   = $_POST['pass'] ?? '';
+$usuario = mysqli_real_escape_string($conexao, $_POST['user']);
+$senha   = mysqli_real_escape_string($conexao, $_POST['pass']);
 $logado  = false;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // PROBLEMA 2: SQL Injection clássico por concatenação direta
-    $query = "SELECT * FROM usuarios WHERE usuario = '$usuario' AND senha = '$senha'";
+    $query = "SELECT * FROM usuarios WHERE usuario = '$usuario'  AND senha = '$senha'";
     ////echo "<BR>" . $query . "<br>";
-    
+
+   
     // Executa a query passando primeiro a conexão, depois a string de consulta
     $resultado = mysqli_query($conexao, $query);
     
