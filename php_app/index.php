@@ -8,6 +8,7 @@ $conexao = mysqli_connect("mysql_container", "root", "SenhaSuperSecretaDoBatman1
 
 $usuario = $_POST['user'] ?? '';
 $senha   = $_POST['pass'] ?? '';
+
 //$usuario = mysqli_real_escape_string($conexao, $_POST['user']);
 //$senha   = mysqli_real_escape_string($conexao, $_POST['pass']);
 $logado  = false;
